@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Profile | SmartPeer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="logo">SmartPeer</div>
+      <div>
+        <a href="home.html" class="nav-btn">Dashboard</a>
+        <button class="nav-btn" onclick="logout()">Logout</button>
+      </div>
+    </header>
+
+    <section class="hero">
+      <h1>YOUR PROFILE</h1>
+      <p class="subtitle">Showcase your skills and find the right teams</p>
+    </section>
+<section class="profile-container" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; padding: 20px;">
+  
+  <div class="card">
+    <h3>👤 Profile Summary</h3>
+    <div id="userSkillsContainer" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;"></div>
+    <p style="margin-top: 15px;">Goal: <span id="userGoalBadge" class="badge badge-ready">--</span></p>
+    <p>Pace: <span id="userPaceDisplay" style="font-weight: bold;">--</span></p>
+  </div>
+
+  <div class="card" style="text-align: center;">
+    <h3>📊 Individual Readiness</h3>
+    <div id="readinessScore" style="font-size: 3rem; font-weight: 800; color: #1e293b; margin: 10px 0;">0</div>
+    <div style="width: 100%; height: 8px; background: #e2e8f0; border-radius: 4px;">
+      <div id="readinessBar" style="width: 0%; height: 100%; background: #2563eb; border-radius: 4px; transition: width 0.5s;"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>🤝 My Connections</h3>
+    <div id="myConnectionsList" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px;"></div>
+  </div>
+
+  <div class="card">
+    <h3>🎯 Next 7-Day Focus</h3>
+    <p id="dynamicFocusText" style="font-size: 0.9rem; color: #475569; margin-top: 10px;">Analyzing...</p>
+    <div style="margin-top:10px; background: #f1f5f9; padding:10px; border-radius:8px;">
+      <strong id="readinessInsight" style="font-size: 0.8rem;">Calculating...</strong>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>📚 Your Learning Path</h3>
+    <div id="learningPath" style="margin-top: 10px;"></div>
+  </div>
+
+  <div class="card">
+    <h3>🔍 Explore Peers</h3>
+    <p style="font-size: 0.85rem; color: #64748b;">Find teammates who complement your skills</p>
+    <button class="btn btn-primary" style="width: 100%; margin: 15px 0;" onclick="window.location.href='home.html'">Explore Matches</button>
+    <div style="border-top: 1px solid #f1f5f9; padding-top: 10px;">
+       <h4 id="targetGoalTitle" style="font-size: 0.9rem;">Target Goal</h4>
+       <div class="badge badge-moderate" style="margin-top: 5px;">3 steps remaining</div>
+    </div>
+  </div>
+</section>
+</section>
+  </div>
+
+  <!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script> <script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyBkNUkZVM9FzJMcouzSVdMPRXHlEK52UYs",
+    authDomain: "smartpeermatching.firebaseapp.com",
+    projectId: "smartpeermatching",
+    storageBucket: "smartpeermatching.firebasestorage.app",
+    messagingSenderId: "192356601698",
+    appId: "1:192356601698:web:04ab211dedf555cd82263b"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth(); // Define auth
+  const db = firebase.firestore(); // Define db
+</script>
+  <script>
+  // Load connections from localStorage
+  const connections = JSON.parse(localStorage.getItem("connections")) || [];
+  const list = document.getElementById("connectionsList");
+
+  if (list) {
+    if (connections.length === 0) {
+      list.innerHTML = "<p>No connections yet. Start exploring peers!</p>";
+    } else {
+      connections.forEach(user => {
+        const div = document.createElement("div");
+        div.className = "badge badge-ready";
+        div.style.display = "block";
+        div.style.marginBottom = "10px";
+        div.style.padding = "10px";
+
+        div.innerHTML = `
+          <strong>${user.name}</strong><br>
+          Skills: ${user.skills}<br>
+          Connected on: ${user.connectedAt}
+        `;
+
+        list.appendChild(div);
+      });
+    }
+  }
+auth.onAuthStateChanged(user => {
+  if (user) {
+    db.collection("profiles").doc(user.uid).get().then(doc => {
+      if (doc.exists) {
+        const data = doc.data();
+        const skills = data.skills || "";
+        const skillArray = skills.split(',').filter(s => s.trim() !== "");
+        const goal = data.goal || "Learner";
+
+        // 1. Profile Summary & Goals
+        document.getElementById('userGoalBadge').innerText = goal;
+        document.getElementById('userPaceDisplay').innerText = data.pace || "Medium";
+        document.getElementById('userSkillsContainer').innerHTML = skillArray.map(s => 
+          `<span class="badge badge-ready">${s.trim()}</span>`).join('');
+        document.getElementById('targetGoalTitle').innerText = goal + " Intern";
+
+        // 2. Readiness Score
+        const score = Math.min(Math.round((skillArray.length / 10) * 100), 100);
+        document.getElementById('readinessScore').innerText = score;
+        document.getElementById('readinessBar').style.width = score + "%";
+
+        // 3. Focus & Learning Path Logic
+        updateGrowthMetrics(goal);
+
+        // 4. Load Connections
+        displayConnections();
+      }
+    });
+  } else {
+    window.location.href = "index.html";
+  }
+});
+
+function updateGrowthMetrics(goal) {
+  const focusText = document.getElementById('dynamicFocusText');
+  const insight = document.getElementById('readinessInsight');
+  const path = document.getElementById('learningPath');
+
+  if (goal.includes("Data")) {
+    focusText.innerText = "Focus on data cleaning with Pandas and exploring ML model deployment.";
+    insight.innerText = "Insight: Deepen your statistical understanding.";
+    path.innerHTML = `<div class="badge badge-ready" style="display:block; margin-bottom:8px;">Step 1: NumPy & Pandas</div>
+                      <div class="badge badge-moderate" style="display:block;">Step 2: Scikit-Learn Modeling</div>`;
+  } else {
+    focusText.innerText = "Focus on building a project that utilizes your current skills.";
+    insight.innerText = "Insight: Practice project execution.";
+    path.innerHTML = `<div class="badge badge-ready" style="display:block;">Step 1: Core Fundamentals</div>`;
+  }
+}
+
+function displayConnections() {
+  const connections = JSON.parse(localStorage.getItem("connections")) || [];
+  const container = document.getElementById('myConnectionsList');
+  if (connections.length === 0) {
+    container.innerHTML = "<p style='font-size:0.8rem; color:#64748b;'>No connections yet.</p>";
+    return;
+  }
+  container.innerHTML = connections.slice(0, 4).map(conn => `
+    <div style="background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0; text-align:center;">
+      <strong style="font-size:0.8rem;">${conn.name}</strong>
+    </div>
+  `).join('');
+}
+
+</script>
+
+</body>
+</html>

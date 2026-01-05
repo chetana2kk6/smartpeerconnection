@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dashboard | SmartPeer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="logo">SmartPeer</div>
+      <div>
+        <a href="profile.html" class="nav-btn">Your Profile</a>
+        <a href="edit-profile.html" class="nav-btn">Edit Profile</a>
+        <button class="nav-btn" onclick="logout()">Logout</button>
+      </div>
+    </header>
+
+    <section class="hero">
+      <h1>SmartPeer Dashboard</h1>
+      <p class="subtitle">Find perfect teammates and grow your skills</p>
+    </section>
+
+   <section class="dashboard">
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+    
+    <div class="card" style="margin: 0;">
+      <h3>👥 Top Peer Matches</h3>
+      <div id="topMatchesList">
+        <p style="color: #64748b; font-size: 0.85rem;">Finding your best matches...</p>
+      </div>
+    </div>
+
+    <div class="card" style="margin: 0;">
+      <h3>🔍 Quick Match Test</h3>
+      <div class="input-group" style="margin: 10px 0;">
+        <input type="text" id="userSkills" placeholder="Your skills (Python, ML, UI...)">
+      </div>
+      <div class="input-group" style="margin: 10px 0;">
+        <input type="text" id="peerSkills" placeholder="Peer skills (Backend, Design...)">
+      </div>
+      <button class="btn btn-primary" onclick="showMatch()" style="width: 100%; margin-top: 10px;">
+        Test Match Score
+      </button>
+      <div id="result" class="result" style="display: none; margin-top: 15px; text-align: center;"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h3>👥 Available Peers</h3>
+      <button class="btn btn-primary" onclick="loadAllPeers()" style="padding: 10px 20px;">🔄 Refresh List</button>
+    </div>
+    <div id="peersList" class="peers-grid">
+      </div>
+  </div>
+</section>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore-compat.js"></script>
+  
+<script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBkNUkZVM9FzJMcouzSVdMPRXHlEK52UYs",
+      authDomain: "smartpeermatching.firebaseapp.com",
+      projectId: "smartpeermatching",
+      storageBucket: "smartpeermatching.firebasestorage.app",
+      messagingSenderId: "192356601698",
+      appId: "1:192356601698:web:04ab211dedf555cd82263b",
+      measurementId: "G-K1G0RFL5HT"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const auth = firebase.auth();
+
+    // Removed the peersData default array to ensure no fake data appears
+    let currentFullPeerList = []; 
+
+    function logout() {
+      auth.signOut().then(() => window.location.href = 'index.html');
+    }
+
+    // 1. Dynamic Dashboard Logic
+    async function updateDynamicDashboard(userData) {
+      const goal = userData.goal || "Learning";
+      const skills = userData.skills || "";
+      const skillArray = skills.split(',').map(s => s.trim()).filter(s => s !== "");
+
+      // Readiness Score
+      const score = Math.min(Math.round((skillArray.length / 10) * 100), 100);
+      document.getElementById('readinessScore').innerText = score;
+      document.getElementById('readinessBar').style.width = score + "%";
+
+      // 7-Day Focus Text
+      const focusText = document.getElementById('dynamicFocusText');
+      const insight = document.getElementById('readinessInsight');
+      
+      if (goal.includes("Web")) {
+        focusText.innerText = "Focus on building a responsive project and mastering API integrations.";
+        insight.innerText = "Readiness Insight: Strengthen your JavaScript logic to maximize results.";
+      } else if (goal.includes("Data")) {
+        focusText.innerText = "Focus on data cleaning with Pandas and exploring ML model deployment.";
+        insight.innerText = "Readiness Insight: Deepen your statistical understanding.";
+      } else {
+        focusText.innerText = "Build a mini-project that utilizes at least three of your current skills.";
+        insight.innerText = "Readiness Insight: You are building a solid foundation.";
+      }
+
+      // Skill Gap Analysis
+      const gapList = document.getElementById('missingSkillsList');
+      const suggestion = document.getElementById('suggestionText');
+      let gaps = ["System Thinking", "Collaboration", "Project Execution"];
+      if (!skills.includes("Git")) gaps.push("Version Control (Git)");
+
+      gapList.innerHTML = gaps.map(g => `<li>${g}</li>`).join('');
+      suggestion.innerText = `Based on your goal to "Get Placed" as a ${goal}, focus on these gaps.`;
+      
+    }
+
+    // 2. Fetching Logic
+  async function loadAllPeers() {
+  try {
+    // 1. Clear previous lists
+    const topContainer = document.getElementById('topMatchesList');
+    const availableContainer = document.getElementById('peersList');
+    
+    // 2. Fetch all registered users from Firestore
+    const snapshot = await db.collection("profiles").get(); 
+    let registeredPeers = [];
+    
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      // Exclude the current logged-in user from the list
+      if (auth.currentUser && doc.id !== auth.currentUser.uid) {
+        registeredPeers.push({
+          name: data.name || "Peer", 
+          pic: data.pic || "👤",
+          skills: data.skills || "Skills not set",
+          role: data.goal || "Learner", 
+          score: Math.floor(Math.random() * 20) + 75 // Random match score for display
+        });
+      }
+    });
+
+    // 3. Handle Empty State
+    if (registeredPeers.length === 0) {
+      const emptyMsg = "<p style='color: #64748b;'>No other users registered yet.</p>";
+      topContainer.innerHTML = emptyMsg;
+      availableContainer.innerHTML = emptyMsg;
+      return;
+    }
+
+    // 4. Split and Render
+    // Top Peers: Take the first 3 registered users
+    const topThree = registeredPeers.slice(0, 3);
+    // Available Peers: Take everyone else
+    const remainingPeers = registeredPeers.slice(3);
+
+    renderPeers(topThree, 'topMatchesList'); 
+    renderPeers(remainingPeers, 'peersList');
+
+  } catch (e) {
+    console.error("Error loading registered users:", e);
+  }
+}
+
+// Helper to render peers into specific containers
+function renderPeers(peers, targetId) {
+  const container = document.getElementById(targetId);
+  if (!container) return;
+  const connections = JSON.parse(localStorage.getItem("connections")) || [];
+
+  if (peers.length === 0) {
+    container.innerHTML = "<p style='color: #64748b; font-size: 0.85rem;'>No more peers in this section.</p>";
+    return;
+  }
+
+  container.innerHTML = peers.map(peer => {
+    const isConnected = connections.some(c => c.name === peer.name);
+    return `
+      <div class="peer-card" style="display: flex; gap: 15px; padding: 15px; border-radius: 12px; background: #f8fafc; margin-bottom: 12px; border: 1px solid #e2e8f0;">
+        <div style="font-size: 2rem;">${peer.pic}</div>
+        <div style="flex: 1;">
+          <h4 style="margin: 0; color: #1e293b;">${peer.name}</h4>
+          <p style="color: #64748b; font-size: 0.8rem; margin: 4px 0;">${peer.skills}</p>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <div class="badge badge-ready" style="font-size: 0.7rem; padding: 4px 10px;">${peer.score}% Match</div>
+            <span style="font-size: 0.75rem; color: #94a3b8;">${peer.role}</span>
+          </div>
+        </div>
+        <button class="btn ${isConnected ? 'badge-ready' : 'btn-primary'}" 
+          style="padding: 6px 12px; font-size: 0.8rem;"
+          onclick="${isConnected ? '' : `handleConnect('${peer.name}', '${peer.skills}')`}"
+          ${isConnected ? 'disabled' : ''}>
+          ${isConnected ? '✓' : 'Connect'}
+        </button>
+      </div>`;
+  }).join('');
+}
+
+    function handleConnect(name, skills) {
+      connectUser(name, skills); 
+      renderPeers(currentFullPeerList);
+    }
+
+    function connectUser(name, skills) {
+      let connections = JSON.parse(localStorage.getItem("connections")) || [];
+      if (connections.some(c => c.name === name)) return;
+      connections.push({ name: name, skills: skills, connectedAt: new Date().toLocaleDateString() });
+      localStorage.setItem("connections", JSON.stringify(connections));
+      alert("Connected with " + name);
+    }
+
+    // 4. App Initialization
+    window.onload = () => {
+      auth.onAuthStateChanged(user => {
+        if (user) {
+          db.collection("profiles").doc(user.uid).get().then(doc => {
+            if (doc.exists) {
+              updateDynamicDashboard(doc.data()); // Call the dynamic function
+              loadAllPeers();
+            } else {
+              window.location.href = 'edit-profile.html';
+            }
+          });
+        } else {
+          window.location.href = 'index.html';
+        }
+      });
+    };
+    function viewLearningPath() {
+      const path = document.getElementById('learningPath');
+      path.style.display = path.style.display === 'none' ? 'block' : 'none';
+    }
+  </script>
+</body>
+</html>

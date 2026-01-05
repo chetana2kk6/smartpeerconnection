@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Login | SmartPeer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <button id="themeToggle"
+    style="position: fixed; top: 20px; right: 20px; z-index: 1000;
+           padding: 10px; border-radius: 50%;
+           background: rgba(255,255,255,0.2);
+           border: none; cursor: pointer;">🌙</button>
+
+  <div class="auth-container">
+    <h1>SmartPeer</h1>
+    <p style="opacity: 0.9; margin-bottom: 30px;">
+      Build better teams faster
+    </p>
+
+    <div class="input-group">
+      <input type="email" id="email" placeholder="Email" required>
+    </div>
+
+    <div class="input-group">
+      <input type="password" id="password" placeholder="Password (6+ chars)" required>
+    </div>
+
+    <div id="msg"></div>
+
+    <div style="display: flex; gap: 15px; margin: 20px 0;">
+      <button id="loginBtn" class="btn btn-primary" onclick="login()" style="flex: 1;">
+        Login
+      </button>
+      <button id="registerBtn" class="btn btn-secondary" onclick="register()" style="flex: 1;">
+        Register
+      </button>
+    </div>
+
+    <a href="index.html" class="nav-btn">← Back to Home</a>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBkNUkZVM9FzJMcouzSVdMPRXHlEK52UYs",
+      authDomain: "smartpeermatching.firebaseapp.com",
+      projectId: "smartpeermatching",
+      storageBucket: "smartpeermatching.firebasestorage.app",
+      messagingSenderId: "192356601698",
+      appId: "1:192356601698:web:04ab211dedf555cd82263b",
+      measurementId: "G-K1G0RFL5HT"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    function showError(text, isSuccess = false) {
+      const msg = document.getElementById("msg");
+      if (msg) {
+        msg.style.color = isSuccess ? "#10b981" : "#f87171";
+        msg.innerText = text;
+        setTimeout(() => { msg.innerText = ''; }, 5000);
+      }
+    }
+
+    function login() {
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      if (!email || !password) return showError("Fill all fields");
+
+      auth.signInWithEmailAndPassword(email, password)
+        .then(() => {
+          showError("Login successful! Redirecting...", true);
+          setTimeout(() => window.location.href = "home.html", 1000);
+        })
+        .catch(err => {
+          showError("Login failed: " + err.message);
+        });
+    }
+
+    function register() {
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+
+      if (!email || !password) return showError("Fill all fields");
+      if (password.length < 6) return showError("Password must be 6+ characters");
+
+      auth.createUserWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+          showError("Account created! Let's set up your profile...", true);
+          // Redirect to your profile setup page
+          setTimeout(() => {
+            window.location.href = "edit-profile.html";
+          }, 1500);
+        })
+        .catch(err => {
+          showError("Registration failed: " + err.message);
+        });
+    } 
+  </script>
+
+  <script>
+    // Theme Toggle
+    const toggle = document.getElementById('themeToggle');
+    if (localStorage.getItem('theme') === 'light') {
+      document.body.classList.add('light-theme');
+      if(toggle) toggle.textContent = '☀️';
+    }
+
+    if(toggle) {
+      toggle.onclick = () => {
+        document.body.classList.toggle('light-theme');
+        const isLight = document.body.classList.contains('light-theme');
+        toggle.textContent = isLight ? '☀️' : '🌙';
+        localStorage.setItem('theme', isLight ? 'light' : 'dark');
+      };
+    }
+
+    // Mode Handling
+    const params = new URLSearchParams(window.location.search);
+    const mode = params.get("mode");
+    const loginBtn = document.getElementById("loginBtn");
+    const registerBtn = document.getElementById("registerBtn");
+
+    if (mode === "login" && registerBtn) registerBtn.style.display = "none";
+    if (mode === "register" && loginBtn) loginBtn.style.display = "none";
+  </script>
+</body>
+</html>

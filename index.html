@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>SmartPeer | Build Ready Teams</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="logo">SmartPeer</div>
+      <button class="nav-btn" onclick="handleGetStarted()">Login</button>
+    </header>
+
+    <section class="hero">
+      <h1>Build Hackathon‑Ready Teams</h1>
+      <p class="subtitle">
+        Smart peer matching with skill gap analysis, readiness scores, and perfect role assignments.
+        Stop guessing, start winning.
+      </p>
+      <button class="btn btn-primary" onclick="handleJoin()">Join Now</button>
+    </section>
+
+    <section class="dashboard">
+      <div class="card">
+        <h3>🎯 Smart Matching</h3>
+        <p>Skills + interests + learning pace = perfect teams for hackathons, projects, research.</p>
+        <div class="badge badge-ready">82% Success Rate</div>
+      </div>
+
+      <div class="card">
+        <h3>🧠 Skill Gap Analyzer</h3>
+        <p>Know exactly what skills you need to reach your goals. Clear, actionable steps.</p>
+        <div class="badge badge-moderate">Gemini‑Powered</div>
+      </div>
+
+      <div class="card">
+        <h3>📊 Readiness Scores</h3>
+        <p>Team + individual readiness (0‑100). See progress over time, not just resumes.</p>
+        <div class="badge badge-ready">Hackathon Ready</div>
+      </div>
+    </section>
+  </div>
+  <script>
+  function handleJoin() {
+    // Always go to registration
+    window.location.href = "auth.html?mode=register";
+  }
+
+  function handleGetStarted() {
+    // Check login status
+    if (window.firebase && firebase.auth) {
+      firebase.auth().onAuthStateChanged(user => {
+        if (user) {
+          // Logged in → Home
+          window.location.href = "home.html";
+        } else {
+          // Not logged in → Login
+          window.location.href = "auth.html?mode=login";
+        }
+      });
+    } else {
+      // Fallback (if Firebase not loaded yet)
+      window.location.href = "auth.html?mode=login";
+    }
+  }
+</script>
+
+</body>
+</html>
