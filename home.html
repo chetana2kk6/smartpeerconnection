@@ -33,10 +33,9 @@
     <div class="card" style="margin: 0;">
       <h3>🔍 Quick Match Test</h3>
       <div class="input-group" style="margin: 10px 0;">
-        <input type="text" id="userSkills" placeholder="Your skills (Python, ML, UI...)">
-      </div>
+<input type="text" id="userSkills" placeholder="Your skills" oninput="showMatch()">      </div>
       <div class="input-group" style="margin: 10px 0;">
-        <input type="text" id="peerSkills" placeholder="Peer skills (Backend, Design...)">
+        <input type="text" id="peerSkills" placeholder="Peer skills" oninput="showMatch()">
       </div>
       <button class="btn btn-primary" onclick="showMatch()" style="width: 100%; margin-top: 10px;">
         Test Match Score
@@ -199,18 +198,30 @@ function renderPeers(peers, targetId) {
   }).join('');
 }
 
-    function handleConnect(name, skills) {
-      connectUser(name, skills); 
-      renderPeers(currentFullPeerList);
-    }
+ // 1. Updated handleConnect to refresh the UI immediately
+function handleConnect(name, skills) {
+  connectUser(name, skills); // Saves to localStorage
+  
+  // Refresh the UI lists immediately without a page reload
+  // We re-run loadAllPeers to check the new localStorage state
+  loadAllPeers(); 
+}
 
-    function connectUser(name, skills) {
-      let connections = JSON.parse(localStorage.getItem("connections")) || [];
-      if (connections.some(c => c.name === name)) return;
-      connections.push({ name: name, skills: skills, connectedAt: new Date().toLocaleDateString() });
-      localStorage.setItem("connections", JSON.stringify(connections));
-      alert("Connected with " + name);
-    }
+// 2. Modified connectUser to ensure data is saved before the UI updates
+function connectUser(name, skills) {
+  let connections = JSON.parse(localStorage.getItem("connections")) || [];
+  if (connections.some(c => c.name === name)) return;
+  
+  connections.push({ 
+    name: name, 
+    skills: skills, 
+    connectedAt: new Date().toLocaleDateString() 
+  });
+  
+  localStorage.setItem("connections", JSON.stringify(connections));
+  // Optional: Remove alert for a smoother "immediate" feel
+  console.log("Connected with " + name); 
+}
 
     // 4. App Initialization
     window.onload = () => {
@@ -233,6 +244,62 @@ function renderPeers(peers, targetId) {
       const path = document.getElementById('learningPath');
       path.style.display = path.style.display === 'none' ? 'block' : 'none';
     }
+  async function showMatch() {
+  const skillInput = document.getElementById("userSkills").value.toLowerCase().trim();
+  const roleInput = document.getElementById("peerSkills").value.toLowerCase().trim();
+  const resultDiv = document.getElementById("result");
+
+  if (!skillInput && !roleInput) {
+    resultDiv.style.display = "none";
+    return;
+  }
+
+  const snapshot = await db.collection("profiles").get();
+  let bestScore = 0;
+  let matchedPeerName = ""; // New variable to store the name
+  let foundMatch = false;
+
+  snapshot.forEach(doc => {
+    const peer = doc.data();
+    const peerSkills = (peer.skills || "").toLowerCase();
+    const peerRole = (peer.goal || "").toLowerCase();
+    const peerName = peer.name || "Unknown Peer";
+
+    // Matching logic
+    const skillMatch = skillInput && peerSkills.includes(skillInput);
+    const roleMatch = roleInput && peerRole.includes(roleInput);
+
+    if (skillMatch || roleMatch) {
+      foundMatch = true;
+      let currentScore = 0;
+      if (roleMatch) currentScore += 60;
+      if (skillMatch) currentScore += 40;
+      
+      // If this is the best match so far, save the name and score
+      if (currentScore > bestScore) {
+        bestScore = currentScore;
+        matchedPeerName = peerName;
+      }
+    }
+  });
+
+  resultDiv.style.display = "block";
+  if (foundMatch) {
+    let status = bestScore >= 80 ? "Hackathon Ready 🚀" : "Moderate Readiness ⚠️";
+    resultDiv.innerHTML = `
+      <div style="font-weight: bold; color: #1e293b; margin-bottom: 5px;">
+        Best Match: ${matchedPeerName}
+      </div>
+      <div style="font-size: 1.1rem; color: #2563eb;">Match Score: ${bestScore}%</div>
+      <div style="font-size: 0.85rem; color: #64748b;">Status: ${status}</div>
+    `;
+  } else {
+    resultDiv.innerHTML = `
+      <strong>Match Score: 0%</strong><br>
+      <small>No peer found matching these criteria.</small>
+    `;
+  }
+}
   </script>
 </body>
 </html>
